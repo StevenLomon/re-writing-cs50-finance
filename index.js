@@ -17,12 +17,15 @@ const { apology, loginRequired, lookup, usd } = require('./helpers');
 
 const app = express();
 
-// Make the usd function available globally in all EJS templates by adding it to res.locals
-// Similar to using a custom jinja filter in Flask
 app.use((req, res, next) => {
+    // Make usd function available in all EJS templates. Similar to using a custom jinja filter in Flask
     res.locals.usd = usd;
-});
 
+    // Make flash messages available in all EJS templates
+    res.locals.messages = req.flash();
+
+    next();
+});
 // Make sure that responses are not cached; that every request gets a fresh response and the 
 // client doesn't use any cached versions of previous responses
 app.use((req, res, next) => {
@@ -32,8 +35,8 @@ app.use((req, res, next) => {
     next();  // Proceed to the next middleware or route
   });
 
-console.log(`Secret key: ${process.env.SECRET_KEY}`) // The type of rabbit ears we use is important!
 
+//console.log(`Secret key: ${process.env.SECRET_KEY}`) // The type of rabbit ears we use is important!
 app.use(flash());
 app.use(session({
     secret: process.env.SECRET_KEY,
