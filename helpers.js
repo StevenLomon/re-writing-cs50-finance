@@ -1,4 +1,4 @@
-const axios = require('axios');
+const axios = require('axios'); // To make HTTP requests, similar to requests.get
 const { v4: uuidv4 } = require('uuid');
 const { escapeRegExp } = require('./utils');  // You can modularize utilities like escapeRegExp
 
