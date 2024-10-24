@@ -63,21 +63,22 @@ app.get('/', loginRequired, (req, res) => {
 
 // Set up the login route GET
 app.get('/login', (req, res) => {
+    console.log("Login page is being rendered"); // For debugging the faulty redirect from /redirect
     res.render('login', { title: 'Login Page' });
 });
 
-// // Set up the login route POST
-// app.post('/login', apology, (req, res) => {
-//     // Ensure username was submitted
-//     if (!req.body.username) {
-//         return apology(res, "Must provide username!");
-//     }
+// Set up the login route POST
+app.post('/login', apology, (req, res) => {
+    // Ensure username was submitted
+    if (!req.body.username) {
+        return apology(res, "Must provide username!");
+    }
 
-//     // Ensure password was submitted
-//     else if (!req.body.password) {
-//         return apology(res, "Must provide password!");
-//     }
-// });
+    // Ensure password was submitted
+    else if (!req.body.password) {
+        return apology(res, "Must provide password!");
+    }
+});
 
 // Set up the register route GET
 app.get('/register', (req, res) => {
@@ -91,13 +92,13 @@ app.post('/register', (req, res) => {
         return apology(res, "Must provide username!");
     }
 
-    // Ensure password was submitted
-    else if (!req.body.password) {
+    // Ensure password and confirmation was submitted
+    else if (!req.body.password || !req.body.confirmation) {
         return apology(res, "Must provide password!");
     }
 
     // Ensure that passwords match
-    else if (!req.body.password === req.body.confirmation) {
+    else if (req.body.password !== req.body.confirmation) {
         return apology(res, "The provided passwords must match!");
     }
 
@@ -105,8 +106,8 @@ app.post('/register', (req, res) => {
     // A ValueError exception will be raised if we try to INSERT a duplicate username
 
 
-    // Redirect user to home page
-    res.redirect('/');
+    // Redirect user to login page
+    res.redirect('/login');
 });
 
 // Listen to the server
