@@ -2,6 +2,7 @@ const process = require('process');
 const sqlite3 = require('sqlite3').verbose(); // Verbose for more detailed logs in local development
 const bcrypt = require('bcrypt'); // For password hashing and verification
 const express = require('express');
+const morgan = require('morgan');
 const session = require('express-session');
 const flash = require('connect-flash');
 const expressLayouts = require('express-ejs-layouts');
@@ -25,7 +26,10 @@ app.use((req, res, next) => {
     res.set('Expires', '0');
     res.set('Pragma', 'no-cache');
     next();  // Proceed to the next middleware or route
-  });
+});
+
+// Enable HTTP request logging
+app.use(morgan('dev'));  // 'dev' gives you concise colored output of requests
 
 //console.log(`Secret key: ${process.env.SECRET_KEY}`) // The type of rabbit ears we use is important!
 app.use(flash());
@@ -45,10 +49,11 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use(expressLayouts);  // Enable express layouts
 app.set('view engine', 'ejs'); // Set EJS as the defauly view engine
 app.set('views', './views'); // Set the templates directory
+app.use(expressLayouts);  // Enable express layouts
 app.set('layout', 'layout');  // Set the default layout file. This refers to views/layout.ejs
+app.use(express.static('public')); // Define directory for static files
 
 // Set up the index route
 app.get('/', loginRequired, (req, res) => {
