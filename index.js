@@ -60,9 +60,52 @@ app.get('/', loginRequired, (req, res) => {
     res.render('index', {title: 'Index'});
 });
 
-// Set up the login route
+// Set up the login route GET
 app.get('/login', (req, res) => {
     res.render('login', { title: 'Login Page' });
+});
+
+// Set up the login route POST
+app.post('/login', apology, (req, res) => {
+    // Ensure username was submitted
+    if (!req.form.get("username")) {
+        apology(res, "Must provide username!");
+    }
+
+    // Ensure password was submitted
+    else if (!req.form.get("password")) {
+        apology(res, "Must provide password!");
+    }
+});
+
+// Set up the register route GET
+app.get('/register', (req, res) => {
+    res.render('register', { title: 'Register Page' });
+});
+
+// Set up the register route POST
+app.post('/register', apology, (req, res) => {
+    // Ensure username was submitted
+    if (!req.form.get("username")) {
+        apology(res, "Must provide username!");
+    }
+
+    // Ensure password was submitted
+    else if (!req.form.get("password")) {
+        apology(res, "Must provide password!");
+    }
+
+    // Ensure that passwords match
+    else if (!req.form.get("password") === req.form.get("confirmation")) {
+        apology(res, "The provided passwords must match!");
+    }
+
+    // Try to insert the user into the database
+    // A ValueError exception will be raised if we try to INSERT a duplicate username
+
+
+    // Redirect user to home page
+    res.redirect('/');
 });
 
 // Listen to the server
