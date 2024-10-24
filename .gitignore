@@ -1,0 +1,14 @@
+# Dependency directory
+node_modules/
+
+# Environment variables
+.env
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Miscellaneous
+*.swp  # Swap files for Linux editors
+
