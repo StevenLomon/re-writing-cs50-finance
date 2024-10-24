@@ -48,6 +48,7 @@ app.use((req, res, next) => {
     res.locals.usd = usd; // Make usd function available in all EJS templates. Similar to using a custom jinja filter in Flask
     next();
 });
+app.use(express.urlencoded({ extended: true }));  // Middleware function to parse form data
 
 app.set('view engine', 'ejs'); // Set EJS as the defauly view engine
 app.set('views', './views'); // Set the templates directory
@@ -65,18 +66,18 @@ app.get('/login', (req, res) => {
     res.render('login', { title: 'Login Page' });
 });
 
-// Set up the login route POST
-app.post('/login', apology, (req, res) => {
-    // Ensure username was submitted
-    if (!req.form.get("username")) {
-        apology(res, "Must provide username!");
-    }
+// // Set up the login route POST
+// app.post('/login', apology, (req, res) => {
+//     // Ensure username was submitted
+//     if (!req.body.username) {
+//         return apology(res, "Must provide username!");
+//     }
 
-    // Ensure password was submitted
-    else if (!req.form.get("password")) {
-        apology(res, "Must provide password!");
-    }
-});
+//     // Ensure password was submitted
+//     else if (!req.body.password) {
+//         return apology(res, "Must provide password!");
+//     }
+// });
 
 // Set up the register route GET
 app.get('/register', (req, res) => {
@@ -84,20 +85,20 @@ app.get('/register', (req, res) => {
 });
 
 // Set up the register route POST
-app.post('/register', apology, (req, res) => {
+app.post('/register', (req, res) => {
     // Ensure username was submitted
-    if (!req.form.get("username")) {
-        apology(res, "Must provide username!");
+    if (!req.body.username) {
+        return apology(res, "Must provide username!");
     }
 
     // Ensure password was submitted
-    else if (!req.form.get("password")) {
-        apology(res, "Must provide password!");
+    else if (!req.body.password) {
+        return apology(res, "Must provide password!");
     }
 
     // Ensure that passwords match
-    else if (!req.form.get("password") === req.form.get("confirmation")) {
-        apology(res, "The provided passwords must match!");
+    else if (!req.body.password === req.body.confirmation) {
+        return apology(res, "The provided passwords must match!");
     }
 
     // Try to insert the user into the database

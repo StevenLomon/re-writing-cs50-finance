@@ -4,18 +4,23 @@ const { escapeRegExp } = require('./utils');  // You can modularize utilities li
 
 // Apology function
 function escape(s) {
-  const replacements = [
-    ["-", "--"], [" ", "-"], ["_", "__"], ["?", "~q"], ["%", "~p"], ["#", "~h"], ["/", "~s"], ['"', "''"]
-  ];
-  replacements.forEach(([oldChar, newChar]) => {
-    s = s.replace(new RegExp(escapeRegExp(oldChar), 'g'), newChar);
-  });
-  return s;
+    if (typeof s !== 'string') {
+        return s;  // If it's not a string, just return it as is
+    }
+
+    const replacements = [
+        ["-", "--"], [" ", "-"], ["_", "__"], ["?", "~q"], ["%", "~p"], ["#", "~h"], ["/", "~s"], ['"', "''"]
+    ];
+
+    replacements.forEach(([oldChar, newChar]) => {
+        s = s.replace(new RegExp(escapeRegExp(oldChar), 'g'), newChar);
+    });
+    return s;
 }
 
 function apology(res, message, code = 400) {
   const escapedMessage = escape(message);
-  res.status(code).render('apology', { top: code, bottom: escapedMessage });
+  res.status(code).render('apology', { top: code, bottom: escapedMessage, title: "Error" });
 }
 
 // Login required middleware
