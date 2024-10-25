@@ -11,7 +11,9 @@ require('dotenv').config();
 
 const { apology, loginRequired, lookup, usd } = require('./helpers');
 
-const Transaction = require('./models/Transaction');  // Import the model to ensure syncing
+// Import models to ensure syncing
+const Transaction = require('./models/Transaction');
+const User = require('./models/User');
 
 const app = express();
 
@@ -24,23 +26,23 @@ app.use((req, res, next) => {
     next();  // Proceed to the next middleware or route
 });
 
-// Enable HTTP request logging
-app.use(morgan('dev'));  // 'dev' gives you concise colored output of requests
-
 //console.log(`Secret key: ${process.env.SECRET_KEY}`) // The type of rabbit ears we use is important!
-app.use(flash());
 app.use(session({
-    secret: process.env.SECRET_KEY,
+    secret: process.env.SECRET_KEY || 'your-secret-key',
     resave: false,
     saveUninitialized: true,
-    store: new FileStore(),  // Use filesystem to store session data
-    cookie: { maxAge: null }  // Session expires when the browser is closed
+    cookie: { 
+        secure: false, // Set to true in production when using HTTPS
+        maxAge: null   // or set a specific duration if needed
+    }
 }));
+app.use(flash());
 
 // Middleware function to allow functions to be used globally across EJS templates
 app.use((req, res, next) => {
     res.locals.session = req.session; // Make the session available in all EJS templates
     res.locals.messages = req.flash(); // Make flash messages available in all EJS templates
+    console.log("Messages available in res.locals:", res.locals.messages); // Log global flash messages for debugging purposes
     res.locals.usd = usd; // Make usd function available in all EJS templates. Similar to using a custom jinja filter in Flask
     next();
 });
@@ -52,6 +54,9 @@ app.use(expressLayouts);  // Enable express layouts
 app.set('layout', 'layout');  // Set the default layout file. This refers to views/layout.ejs
 app.use(express.static('public')); // Define directory for static files
 
+// Enable HTTP request logging
+app.use(morgan('dev'));  // 'dev' gives you concise colored output of requests
+
 // Set up the index route
 app.get('/', loginRequired, (req, res) => {
     res.render('index', {title: 'Index'});
@@ -59,7 +64,8 @@ app.get('/', loginRequired, (req, res) => {
 
 // Set up the login route GET
 app.get('/login', (req, res) => {
-    console.log("Login page is being rendered"); // For debugging the faulty redirect from /redirect
+    // console.log("Login page is being rendered"); // For debugging the faulty redirect from /redirect
+    console.log("Flash message accessed:", req.flash('success')); // Log the flash message for debugging purposes
     res.render('login', { title: 'Login Page' });
 });
 
@@ -82,7 +88,7 @@ app.get('/register', (req, res) => {
 });
 
 // Set up the register route POST
-app.post('/register', (req, res) => {
+app.post('/register', async (req, res) => {
     // Ensure username was submitted
     if (!req.body.username) {
         return apology(res, "Must provide username!");
@@ -98,12 +104,37 @@ app.post('/register', (req, res) => {
         return apology(res, "The provided passwords must match!");
     }
 
-    // Try to insert the user into the database
+    // If all validation passed; Try to insert the user into the database
     // A ValueError exception will be raised if we try to INSERT a duplicate username
+    try {
+        // Hash the password asynchronously
+        const hashedPassword = await bcrypt.hash(req.body.password, 10); // 10 salt rounds is a recommended default for security
 
+        // Create the new user with the hashed password
+        const newUser = await User.create({
+            username: req.body.username,
+            hash: hashedPassword
+        });
 
-    // Redirect user to login page
-    res.redirect('/login');
+        // res.json(newUser); // Send the newly created user as a response
+
+        // Set a flash message for success
+        req.flash('success', 'Registration successful! Please log in.');
+        console.log("Flash message set:", req.flash('success')); // Log the message for debugging purposes
+
+        // Redirect user to login page
+        res.redirect('/login');
+
+        
+    } catch (error) {
+        console.log('Error when creating user:', error);
+
+        if (error.name === 'SequelizeUniqueConstraintError') {
+            return apology(res, "Username already exists!");
+        }
+
+        res.status(500).send('Server error');
+    }
 });
 
 // Listen to the server
