@@ -13,3 +13,5 @@ sequelize.sync()
     .catch((error) => {
         console.log('Database synced resulted in error:', error)
     });
+
+module.exports = sequelize;

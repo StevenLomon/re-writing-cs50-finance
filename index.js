@@ -11,6 +11,8 @@ require('dotenv').config();
 
 const { apology, loginRequired, lookup, usd } = require('./helpers');
 
+const Transaction = require('./models/Transaction');  // Import the model to ensure syncing
+
 const app = express();
 
 // Make sure that responses are not cached; that every request gets a fresh response and the 
