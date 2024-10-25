@@ -183,7 +183,16 @@ app.post('/register', async (req, res) => {
     }
 });
 
+app.get('/buy', loginRequired, (req, res) => {
+    res.render('buy', { title: 'Buy Options' });
+});
 
+app.post('/buy', loginRequired, async (req, res) => {
+    const symbol = req.body.symbol;
+    if (!symbol) return apology(res, "Must provide symbol!");
+
+    // Ensure valid symbol and that price is available for the symbol
+})
 
 // Listen to the server
 app.listen(3000, () => {
