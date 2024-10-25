@@ -3,8 +3,8 @@ const bcrypt = require('bcrypt'); // For password hashing and verification
 const express = require('express');
 const morgan = require('morgan');
 const session = require('express-session');
-const expressLayouts = require('express-ejs-layouts');
 const FileStore = require('session-file-store')(session);
+const expressLayouts = require('express-ejs-layouts');
 const { DataTypes, ValidationError } = require('sequelize');
 require('dotenv').config();
 
@@ -16,6 +16,19 @@ const User = require('./models/User');
 
 const app = express();
 
+// console.log(`Secret key: ${process.env.SECRET_KEY}`) // The type of rabbit ears we use is important!
+// Session middleware
+app.use(session({
+    store: new FileStore(),  // Use file-based session store
+    secret: process.env.SECRET_KEY || 'your-secret-key',
+    resave: false,
+    saveUninitialized: false,
+    cookie: { 
+        secure: false, // Set to true in production with HTTPS
+        maxAge: 24 * 60 * 60 * 1000  // 1 day in milliseconds, adjust as needed
+    }
+}));
+
 // Make sure that responses are not cached; that every request gets a fresh response and the 
 // client doesn't use any cached versions of previous responses
 app.use((req, res, next) => {
@@ -25,18 +38,6 @@ app.use((req, res, next) => {
     next();  // Proceed to the next middleware or route
 });
 
-// console.log(`Secret key: ${process.env.SECRET_KEY}`) // The type of rabbit ears we use is important!
-// Session middleware
-app.use(session({
-    secret: process.env.SECRET_KEY || 'your-secret-key',
-    resave: false,
-    saveUninitialized: true,
-    cookie: { 
-        secure: false, // Set to true in production with HTTPS
-        maxAge: 24 * 60 * 60 * 1000  // 1 day in milliseconds, adjust as needed
-    }
-}));
-
 // Middleware function to allow functions to be used globally across EJS templates
 app.use((req, res, next) => {
     res.locals.session = req.session; // Make the session available in all EJS templates
@@ -44,10 +45,10 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use((req, res, next) => {
-    console.log("Session initialized:", req.session);  // This should log an empty session object initially
-    next();
-});
+// app.use((req, res, next) => {
+//     console.log("Session initialized:", req.session);  // This should log an empty session object initially
+//     next();
+// });
 
 app.use(express.urlencoded({ extended: true }));  // Middleware function to parse form data
 
@@ -61,7 +62,22 @@ app.use(express.static('public')); // Define directory for static files
 app.use(morgan('dev'));  // 'dev' gives you concise colored output of requests
 
 // Set up the index route
-app.get('/', loginRequired, (req, res) => {
+app.get('/', loginRequired, async (req, res) => {
+    // Show portfolio of stocks
+    const user = await User.findOne({
+        where: {
+            id: req.session.user_id // Grab the id from the session object storing the id of the logged in user
+        }
+    });
+    
+    // Check if user exists
+    if (!user) {
+        return apology(res, "Error when trying to retrieve username from logged in user:");
+    }    
+    const username = user.dataValues.username;
+    const cash = user.dataValues.cash;
+    console.log(username, cash); // For debugging purposes
+
     res.render('index', {title: 'Index'});
 });
 
@@ -166,6 +182,8 @@ app.post('/register', async (req, res) => {
         res.status(500).send('Server error');
     }
 });
+
+
 
 // Listen to the server
 app.listen(3000, () => {
