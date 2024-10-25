@@ -3,7 +3,6 @@ const bcrypt = require('bcrypt'); // For password hashing and verification
 const express = require('express');
 const morgan = require('morgan');
 const session = require('express-session');
-const flash = require('connect-flash');
 const expressLayouts = require('express-ejs-layouts');
 const FileStore = require('session-file-store')(session);
 const { DataTypes, ValidationError } = require('sequelize');
@@ -26,26 +25,30 @@ app.use((req, res, next) => {
     next();  // Proceed to the next middleware or route
 });
 
-//console.log(`Secret key: ${process.env.SECRET_KEY}`) // The type of rabbit ears we use is important!
+// console.log(`Secret key: ${process.env.SECRET_KEY}`) // The type of rabbit ears we use is important!
+// Session middleware
 app.use(session({
     secret: process.env.SECRET_KEY || 'your-secret-key',
     resave: false,
     saveUninitialized: true,
     cookie: { 
-        secure: false, // Set to true in production when using HTTPS
-        maxAge: null   // or set a specific duration if needed
+        secure: false, // Set to true in production with HTTPS
+        maxAge: 24 * 60 * 60 * 1000  // 1 day in milliseconds, adjust as needed
     }
 }));
-app.use(flash());
 
 // Middleware function to allow functions to be used globally across EJS templates
 app.use((req, res, next) => {
     res.locals.session = req.session; // Make the session available in all EJS templates
-    res.locals.messages = req.flash(); // Make flash messages available in all EJS templates
-    console.log("Messages available in res.locals:", res.locals.messages); // Log global flash messages for debugging purposes
     res.locals.usd = usd; // Make usd function available in all EJS templates. Similar to using a custom jinja filter in Flask
     next();
 });
+
+app.use((req, res, next) => {
+    console.log("Session initialized:", req.session);  // This should log an empty session object initially
+    next();
+});
+
 app.use(express.urlencoded({ extended: true }));  // Middleware function to parse form data
 
 app.set('view engine', 'ejs'); // Set EJS as the defauly view engine
@@ -65,22 +68,53 @@ app.get('/', loginRequired, (req, res) => {
 // Set up the login route GET
 app.get('/login', (req, res) => {
     // console.log("Login page is being rendered"); // For debugging the faulty redirect from /redirect
-    console.log("Flash message accessed:", req.flash('success')); // Log the flash message for debugging purposes
-    res.render('login', { title: 'Login Page' });
+
+    // Clear the current session
+    req.session.destroy(err => {
+        if (err) {
+            console.log("Error clearing session:", err);
+            return apology(res, "An error occurred while clearing the session. Please try again.");
+        }
+        res.render('login', { title: 'Login Page'});
+    });
 });
 
 // Set up the login route POST
-app.post('/login', apology, (req, res) => {
-    // Ensure username was submitted
-    if (!req.body.username) {
-        return apology(res, "Must provide username!");
-    }
+app.post('/login', async (req, res) => {
+    // Ensure username and password are provided
+    if (!req.body.username) return apology(res, "Must provide username!");
+    if (!req.body.password) return apology(res, "Must provide password!");
 
-    // Ensure password was submitted
-    else if (!req.body.password) {
-        return apology(res, "Must provide password!");
+    try {
+        // Query the database for the entered username
+        const rows = await User.findAll({
+            where: {
+                username: req.body.username
+            }
+        });
+
+        // Ensure the username exists and password is correct
+        if (rows.length !== 1) {
+            return apology(res, "Invalid username and/or password!");
+        }
+
+        const passwordMatch = await bcrypt.compare(req.body.password, rows[0].dataValues.hash);
+        if (!passwordMatch) {
+            return apology(res, "Invalid username and/or password!");
+        }
+
+        // Store user ID in the session object
+        req.session.user_id = rows[0].dataValues.id;
+
+        // Redirect to home page
+        return res.redirect('/');
+        
+    } catch (error) {
+        console.log('Error when logging in:', error);
+        res.status(500).send('Server error');
     }
 });
+
 
 // Set up the register route GET
 app.get('/register', (req, res) => {
@@ -117,10 +151,6 @@ app.post('/register', async (req, res) => {
         });
 
         // res.json(newUser); // Send the newly created user as a response
-
-        // Set a flash message for success
-        req.flash('success', 'Registration successful! Please log in.');
-        console.log("Flash message set:", req.flash('success')); // Log the message for debugging purposes
 
         // Redirect user to login page
         res.redirect('/login');

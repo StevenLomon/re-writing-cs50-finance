@@ -47,25 +47,7 @@
                 </div>
             </div>
         </nav>
-
-        <!-- Display error messages -->
-        <% if (messages.error && messages.error.length > 0) { %>
-            <header>
-            <div class="alert alert-primary mb-0 text-center" role="alert">
-                <%= messages.error.join(" ") %>
-            </div>
-            </header>
-        <% } %>
         
-        <!-- Display success messages -->
-        <% if (messages.success && messages.success.length > 0) { %>
-            <header>
-            <div class="alert alert-success mb-0 text-center" role="alert">
-                <%= messages.success.join(" ") %>
-            </div>
-            </header>
-        <% } %>
-
         <main class="container py-5 text-center">
             <%- body %>
         </main>
