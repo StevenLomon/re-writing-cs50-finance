@@ -1,5 +1,4 @@
 const process = require('process');
-const sqlite3 = require('sqlite3').verbose(); // Verbose for more detailed logs in local development
 const bcrypt = require('bcrypt'); // For password hashing and verification
 const express = require('express');
 const morgan = require('morgan');
@@ -7,13 +6,8 @@ const session = require('express-session');
 const flash = require('connect-flash');
 const expressLayouts = require('express-ejs-layouts');
 const FileStore = require('session-file-store')(session);
-const { Sequelize, DataTypes, ValidationError } = require('sequelize');
+const { DataTypes, ValidationError } = require('sequelize');
 require('dotenv').config();
-
-const sequelize = new Sequelize({
-    dialect: 'sqlite',
-    storage: './finance.db'
-})
 
 const { apology, loginRequired, lookup, usd } = require('./helpers');
 
