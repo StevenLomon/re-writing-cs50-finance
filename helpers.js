@@ -1,7 +1,13 @@
 const axios = require('axios'); // To make HTTP requests, similar to requests.get
 const { v4: uuidv4 } = require('uuid');
 const { escapeRegExp } = require('./utils');  // You can modularize utilities like escapeRegExp
-const { subDays } = require('date-fns');
+
+// Custom subDays function since date-fns sucks and causes issues
+function subDays(date, days) {
+  const result = new Date(date);
+  result.setDate(result.getDate() - days);
+  return result;
+}
 
 // Apology function
 function escape(s) {
