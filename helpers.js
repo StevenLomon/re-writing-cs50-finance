@@ -1,6 +1,7 @@
 const axios = require('axios'); // To make HTTP requests, similar to requests.get
 const { v4: uuidv4 } = require('uuid');
 const { escapeRegExp } = require('./utils');  // You can modularize utilities like escapeRegExp
+const { subDays } = require('date-fns');
 
 // Apology function
 function escape(s) {
@@ -35,8 +36,8 @@ function loginRequired(req, res, next) {
 async function lookup(symbol) {
   symbol = symbol.toUpperCase();
   const end = new Date();
-  const start = subDays(end, 7);
-  
+  const start = subDays(end, 7); // Use subDays to get the date 7 days ago
+
   const url = `https://query1.finance.yahoo.com/v7/finance/download/${encodeURIComponent(symbol)}` +
               `?period1=${Math.floor(start.getTime() / 1000)}` +
               `&period2=${Math.floor(end.getTime() / 1000)}` +

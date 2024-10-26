@@ -74,6 +74,7 @@ app.get('/', loginRequired, async (req, res) => {
     if (!user) {
         return apology(res, "Error when trying to retrieve username from logged in user:");
     }    
+
     const username = user.dataValues.username;
     const cash = user.dataValues.cash;
     console.log(username, cash); // For debugging purposes
@@ -191,8 +192,25 @@ app.post('/buy', loginRequired, async (req, res) => {
     const symbol = req.body.symbol;
     if (!symbol) return apology(res, "Must provide symbol!");
 
-    // Ensure valid symbol and that price is available for the symbol
-})
+    try {
+        // Ensure valid symbol and that price is available for the symbol
+        const lookup_info = await lookup(symbol);
+
+        if (!lookup_info) {
+            return apology(res, `Price not available for ${symbol}!`);
+        }
+
+        const price = lookup_info.price;
+        
+        // Now you have a valid price, so you can proceed with the rest of the logic here
+        
+        res.redirect('/');
+    } catch (error) {
+        console.error("Error when looking up symbol:", error);
+        return apology(res, "Error when looking up symbol.");
+    }
+});
+
 
 // Listen to the server
 app.listen(3000, () => {
