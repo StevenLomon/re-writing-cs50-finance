@@ -38,33 +38,40 @@ function loginRequired(req, res, next) {
   next();
 }
 
-// Lookup function (Yahoo Finance API)
+// Lookup function (became unathorized from Yahoo Finance API for some reason so switched to Alpha Vantage)
 async function lookup(symbol) {
-  symbol = symbol.toUpperCase();
-  const end = new Date();
-  const start = subDays(end, 7); // Use subDays to get the date 7 days ago
-
-  const url = `https://query1.finance.yahoo.com/v7/finance/download/${encodeURIComponent(symbol)}` +
-              `?period1=${Math.floor(start.getTime() / 1000)}` +
-              `&period2=${Math.floor(end.getTime() / 1000)}` +
-              `&interval=1d&events=history&includeAdjustedClose=true`;
+  const apiKey = process.env.ALPHA_VANTAGE_API_KEY; // Make sure your API key is stored in .env
+  const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${apiKey}`;
 
   try {
-    const response = await axios.get(url, {
-      headers: { 'User-Agent': 'Your-App-Name' },
-      cookies: { session: uuidv4() },
-      responseType: 'text'
-    });
+      const response = await axios.get(url, {
+          headers: { 'User-Agent': 'request' },
+          responseType: 'json'
+      });
 
-    const lines = response.data.split('\n');
-    const lastLine = lines[lines.length - 2];
-    const [date, open, high, low, close, adjClose, volume] = lastLine.split(',');
-    const price = parseFloat(adjClose);
-    return { price: price.toFixed(2), symbol };
+      const data = response.data;
+      if (data['Error Message']) {
+          console.error("Invalid symbol or API error.");
+          return null;
+      }
+
+      // Access the "Time Series (Daily)" data
+      const timeSeries = data['Time Series (Daily)'];
+      if (!timeSeries) {
+          console.error("Time Series data not available.");
+          return null;
+      }
+
+      // Get the latest trading day
+      const latestDate = Object.keys(timeSeries)[0];
+      const latestData = timeSeries[latestDate];
+      const price = parseFloat(latestData['4. close']).toFixed(2);
+
+      return { price, symbol: symbol.toUpperCase() };
 
   } catch (error) {
-    console.error(error);
-    return null;
+      console.error("Error retrieving data from Alpha Vantage:", error.message);
+      return null;
   }
 }
 

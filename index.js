@@ -192,6 +192,17 @@ app.post('/buy', loginRequired, async (req, res) => {
     const symbol = req.body.symbol;
     if (!symbol) return apology(res, "Must provide symbol!");
 
+    const shares_input = req.body.shares;
+
+    // Ensure shares were submitted and valid
+    if (!shares_input || isNaN(Number(shares_input)) || parseInt(shares_input) < 1) {
+        return apology(res, "Must provide a valid amount of shares as an integer!");
+    } 
+
+    const shares = parseInt(shares_input);
+
+    console.log(shares);
+
     try {
         // Ensure valid symbol and that price is available for the symbol
         const lookup_info = await lookup(symbol);
@@ -203,6 +214,7 @@ app.post('/buy', loginRequired, async (req, res) => {
         const price = lookup_info.price;
         
         // Now you have a valid price, so you can proceed with the rest of the logic here
+         
         
         res.redirect('/');
     } catch (error) {
