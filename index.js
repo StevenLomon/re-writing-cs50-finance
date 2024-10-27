@@ -64,20 +64,13 @@ app.use(morgan('dev'));  // 'dev' gives you concise colored output of requests
 // Set up the index route
 app.get('/', loginRequired, async (req, res) => {
     // Show portfolio of stocks
-    const user = await User.findOne({
-        where: {
-            id: req.session.user_id // Grab the id from the session object storing the id of the logged in user
-        }
-    });
-    
-    // Check if user exists
-    if (!user) {
-        return apology(res, "Error when trying to retrieve username from logged in user:");
-    }    
+    const user = await User.findOne({ where: { id: req.session.user_id } });
+    if (!user) return apology(res, "Error when trying to fetch the current user!") 
 
     const username = user.dataValues.username;
     const cash = user.dataValues.cash;
-    console.log(username, cash); // For debugging purposes
+
+
 
     res.render('index', {title: 'Index'});
 });
@@ -201,61 +194,44 @@ app.post('/buy', loginRequired, async (req, res) => {
 
     const shares = parseInt(shares_input);
 
-    try {
-        // Ensure valid symbol and that price is available for the symbol
+    try { //1st try / catch: Symbol lookup
         const lookup_info = await lookup(symbol);
 
-        if (!lookup_info) {
-            return apology(res, `Price not available for ${symbol}!`);
-        }
+        if (!lookup_info) return apology(res, `Price not available for ${symbol}!`);
 
-        const price = lookup_info.price;
-        
+        const price = lookup_info.price; 
         const total_cost = price * shares;
 
-        // Get cash amount from the current logged in user
-        const user = await User.findOne({
-            where: {
-                id: req.session.user_id
-            }
-        });
+        try { // 2nd try / catch: Database operations
+            const user = await User.findOne({ where: { id: req.session.user_id } });
+            if (!user) return apology(res, "Error when trying to fetch the current user!");
 
-        if (!user) return apology(res, "Error when trying to fetch the current user!");
-        const cash = user.dataValues.cash;
-        const username = user.dataValues.username; // Will also be used for the transaction to be inserted in the database
+            const cash = user.dataValues.cash;
+            const username = user.dataValues.username;
+            const type = 'buy';
 
-        // Check if user has enough cash
-        if (total_cost > cash) return apology(res, "Insufficient funds to complete purchase!");
+            // Check if user has enough cash
+            if (total_cost > cash) return apology(res, "Insufficient funds to complete purchase!");
 
-        // With all checks done, try to insert the transaction into the database
-        const newTransaction = await Transaction.create({
-            username: username,
-            type: 'buy',
-            symbol: symbol,
-            price: price,
-            shares: shares
-        });
+            // Insert the transaction and update cash
+            await Transaction.create({ username, type, symbol, price, shares });
+            const cash_new = cash - total_cost;
 
-        // Try to update the cash amount for current user
-        const cash_new = cash - total_cost;
-        if (!cash_new) return apology(res, "Could not calculate new cash amount for user, try again later!")
+            const [rowsUpdated] = await User.update({ cash: cash_new }, { where: { id: req.session.user_id } });
+            if (rowsUpdated === 0) return apology(res, "Error updating cash balance.");
 
-        const [rowsUpdated] = await User.update(
-            { cash: cash_new },
-            { where: { id: req.session.user_id } }
-        );
-
-        if (rowsUpdated === 0) {
-            console.log("No user found with the specified ID.");
+            // If this point is reached, print a success message to the terminal at least
+            console.log(`Succesfully bought ${shares} shares from ${symbol} for a total cost of $${total_cost}!`);
+            return res.redirect('/');
         }
-
-        // If this point is reached, print a success message to the terminal at least
-        console.log(`Succesfully bought ${shares} shares from ${symbol} for a total cost of ${total_cost}!`)
+        catch (dbError) {
+            console.error("Error during database operation:", dbError);
+            return apology(res, "Database error during transaction.");
+        }
         
-        return res.redirect('/');
-    } catch (error) {
-        console.error("Error when looking up symbol:", error);
-        return apology(res, "Error when looking up symbol.");
+    } catch (lookupError) {
+        console.error("Error when looking up symbol:", lookupError);
+        return apology(res, "Error retrieving symbol information.");
     }
 });
 
@@ -264,12 +240,36 @@ app.get('/add_cash', loginRequired, (req, res) => {
 });
 
 app.post('/add_cash', loginRequired, async (req, res) => {
-    // Ensure cash amount was submitted
-    const cash = req.body.cash;
-    if (!cash) return apology(res, "Could not retrieve cash amount from form!");
+    // Only allow numbers, commas, and decimal points
+    function validCash(cash_input) {
+        return [...cash_input].every(c => !isNaN(Number(c)) || [",", "."].includes(c));
+    }
 
-    function validCash(cash) {
-        
+    // Ensure cash amount was submitted
+    const cash_input = req.body.cash;
+
+    if (!cash_input || !validCash(cash_input) || Number(cash_input) <= 0) {
+        return apology(res, "Must provide a valid amount of cash!")
+    }
+    const cash = Number(cash_input);
+
+    try {
+        const user = await User.findOne({ where: { id: req.session.user_id } });
+        if (!user) return apology(res, "Error when trying to fetch the current user!")
+
+        const cash_old = user.dataValues.cash;
+        const cash_new = cash_old + cash;
+
+        // Update user cash in the database
+        const [rowsUpdated] = await User.update({ cash: cash_new }, { where: { id: req.session.user_id } })
+        if (rowsUpdated === 0) return apology(res, "Error updating cash balance.");
+
+        console.log(`Succesfully added $${cash} to wallet!`)
+        return res.redirect('/')
+
+    } catch(dbError) {
+        console.error("Error during database operation:", dbError);
+        return apology(res, "Database error during transaction.");
     }
 });
 
