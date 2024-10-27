@@ -201,8 +201,6 @@ app.post('/buy', loginRequired, async (req, res) => {
 
     const shares = parseInt(shares_input);
 
-    console.log(shares);
-
     try {
         // Ensure valid symbol and that price is available for the symbol
         const lookup_info = await lookup(symbol);
@@ -213,13 +211,65 @@ app.post('/buy', loginRequired, async (req, res) => {
 
         const price = lookup_info.price;
         
-        // Now you have a valid price, so you can proceed with the rest of the logic here
-         
+        const total_cost = price * shares;
+
+        // Get cash amount from the current logged in user
+        const user = await User.findOne({
+            where: {
+                id: req.session.user_id
+            }
+        });
+
+        if (!user) return apology(res, "Error when trying to fetch the current user!");
+        const cash = user.dataValues.cash;
+        const username = user.dataValues.username; // Will also be used for the transaction to be inserted in the database
+
+        // Check if user has enough cash
+        if (total_cost > cash) return apology(res, "Insufficient funds to complete purchase!");
+
+        // With all checks done, try to insert the transaction into the database
+        const newTransaction = await Transaction.create({
+            username: username,
+            type: 'buy',
+            symbol: symbol,
+            price: price,
+            shares: shares
+        });
+
+        // Try to update the cash amount for current user
+        const cash_new = cash - total_cost;
+        if (!cash_new) return apology(res, "Could not calculate new cash amount for user, try again later!")
+
+        const [rowsUpdated] = await User.update(
+            { cash: cash_new },
+            { where: { id: req.session.user_id } }
+        );
+
+        if (rowsUpdated === 0) {
+            console.log("No user found with the specified ID.");
+        }
+
+        // If this point is reached, print a success message to the terminal at least
+        console.log(`Succesfully bought ${shares} shares from ${symbol} for a total cost of ${total_cost}!`)
         
-        res.redirect('/');
+        return res.redirect('/');
     } catch (error) {
         console.error("Error when looking up symbol:", error);
         return apology(res, "Error when looking up symbol.");
+    }
+});
+
+app.get('/add_cash', loginRequired, (req, res) => {
+    res.render('add_cash', { title: 'Add additional cash' });
+});
+
+app.post('/add_cash', loginRequired, async (req, res) => {
+    // Ensure cash amount was submitted
+    const cash = req.body.cash;
+    if (!cash) return apology(res, "Could not retrieve cash amount from form!");
+
+    function validCash(cash) {
+        
     }
 });
 
