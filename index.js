@@ -64,15 +64,41 @@ app.use(morgan('dev'));  // 'dev' gives you concise colored output of requests
 // Set up the index route
 app.get('/', loginRequired, async (req, res) => {
     // Show portfolio of stocks
-    const user = await User.findOne({ where: { id: req.session.user_id } });
+    const userId = req.session.user_id;
+    const user = await User.findOne({ where: { id: userId } });
     if (!user) return apology(res, "Error when trying to fetch the current user!") 
 
     const username = user.dataValues.username;
     const cash = user.dataValues.cash;
 
+    try {
+        // Step 1: Aggregate totals for bought shares
+        const buyAggregates = await Transaction.findAll({
+            attributes: [
+                'symbol',
+                [sequelize.fn('SUM', sequelize.col('shares')), 'total_shares']
+            ],
+            where: { type: 'buy', username: userId },
+            group: 'symbol',
+            raw: true
+        });
 
+        // Step 2: Aggregate totals for sold shares
+        const sellAggregates = await Transaction.findAll({
+            attributes: [
+                'symbol',
+                [sequelize.fn('SUM', sequelize.col('shares')), 'total_shares']
+            ],
+            where: { type: 'sell', username: userId },
+            group: 'symbol',
+            raw: true
+        });
 
     res.render('index', {title: 'Index'});
+    } catch (error) {
+        console.error("Error while calculating transaction data:", error);
+        return apology(res, "Could not load portfolio.");
+    }
 });
 
 // Set up the login route GET
@@ -273,6 +299,17 @@ app.post('/add_cash', loginRequired, async (req, res) => {
     }
 });
 
+app.get('/logout', (req, res) => {
+    // Forget any user_id by destroying the session
+    req.session.destroy(err => {
+        if (err) {
+            console.error("Error logging out:", err);
+            return res.status(500).send("Error logging out. Please try again.");
+        }
+        // Redirect user to login page
+        res.redirect('/');
+    });
+});
 
 // Listen to the server
 app.listen(3000, () => {
