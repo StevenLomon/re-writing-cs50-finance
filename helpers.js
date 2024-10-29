@@ -40,7 +40,7 @@ function loginRequired(req, res, next) {
 
 // Lookup function (became unathorized from Yahoo Finance API for some reason so switched to Alpha Vantage)
 async function lookup(symbol) {
-  const apiKey = process.env.ALPHA_VANTAGE_API_KEY; // Make sure your API key is stored in .env
+  const apiKey = process.env.ALPHA_VANTAGE_API_KEY; 
   const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${apiKey}`;
 
   try {
@@ -48,26 +48,15 @@ async function lookup(symbol) {
           headers: { 'User-Agent': 'request' },
           responseType: 'json'
       });
+      console.log("API response:", response.data); // Debugging line
 
-      const data = response.data;
-      if (data['Error Message']) {
-          console.error("Invalid symbol or API error.");
-          return null;
-      }
+      if (!response.data["Time Series (5min)"]) {
+        console.log("Invalid or missing data:", response.data);
+        return null;
+    }
 
-      // Access the "Time Series (Daily)" data
-      const timeSeries = data['Time Series (Daily)'];
-      if (!timeSeries) {
-          console.error("Time Series data not available.");
-          return null;
-      }
-
-      // Get the latest trading day
-      const latestDate = Object.keys(timeSeries)[0];
-      const latestData = timeSeries[latestDate];
-      const price = parseFloat(latestData['4. close']).toFixed(2);
-
-      return { price, symbol: symbol.toUpperCase() };
+    const latestPrice = parseFloat(Object.values(response.data["Time Series (5min)"])[0]["4. close"]);
+    return { price: latestPrice.toFixed(2) };
 
   } catch (error) {
       console.error("Error retrieving data from Alpha Vantage:", error.message);

@@ -227,6 +227,28 @@ app.post('/register', async (req, res) => {
     }
 });
 
+app.get('/quote', loginRequired, (req, res) => {
+    res.render('quote', { title: 'Look up prices' });
+});
+
+app.post('/quote', loginRequired, async (req, res) => {
+    const symbol = req.body.symbol;
+    if (!symbol) return apology(res, "Must provide symbol!");
+
+    try {
+        const lookup_info = await lookup(symbol);
+        if (!lookup_info) return apology(res, `Price not available for ${symbol}!`);
+
+        const price = lookup_info.price; 
+
+        res.render('quoted', { title: `Price info for ${symbol}`, symbol, price})
+
+    } catch (lookupError) {
+        console.error("Error when looking up price:", lookupError);
+        return apology(res, `Error when looking up price for ${symbol}!`)
+    }
+});
+
 app.get('/buy', loginRequired, (req, res) => {
     res.render('buy', { title: 'Buy Options' });
 });
