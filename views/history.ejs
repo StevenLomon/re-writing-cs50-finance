@@ -1,0 +1,31 @@
+<!-- views/history.ejs -->
+<div class="header">
+    <h1>History</h1>
+</div>
+<div class="container">
+    <div class="section">
+        <h2>Summary</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Type</th>
+                    <th>Shares</th>
+                    <th>Price at the time of transaction</th>
+                    <th>Time of transaction</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% transactions.forEach(transaction => { %>
+                    <tr>
+                        <td><%= transaction.symbol %></td>
+                        <td><%= transaction.type %></td>
+                        <td><%= transaction.shares %></td>
+                        <td><%= usd(transaction.price) %></td> 
+                        <td><%= transaction.timestamp %></td> 
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    </div>
+</div>

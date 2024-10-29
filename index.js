@@ -246,7 +246,6 @@ app.post('/buy', loginRequired, async (req, res) => {
 
     try { //1st try / catch: Symbol lookup
         const lookup_info = await lookup(symbol);
-
         if (!lookup_info) return apology(res, `Price not available for ${symbol}!`);
 
         const price = lookup_info.price; 
@@ -282,6 +281,22 @@ app.post('/buy', loginRequired, async (req, res) => {
     } catch (lookupError) {
         console.error("Error when looking up symbol:", lookupError);
         return apology(res, "Error retrieving symbol information.");
+    }
+});
+
+app.get('/history', loginRequired, async (req, res) => {
+    const user = await User.findOne({ where: { id: req.session.user_id } });
+    if (!user) return apology(res, "Error when trying to fetch the current user!") 
+
+    try {
+        const transactions = await Transaction.findAll({ where: { username: user.dataValues.username } });
+        const validTransactions = transactions.filter(txn => txn !== null);
+
+        res.render('history', { title: 'History', transactions: validTransactions });
+
+    } catch(dbError) {
+        console.error("Error when accessing history from database:", dbError);
+        return apology(res, "Error retrieving user transaction history");
     }
 });
 
