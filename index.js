@@ -13,6 +13,7 @@ const { apology, loginRequired, lookup, usd } = require('./helpers');
 // Import models to ensure syncing
 const Transaction = require('./models/Transaction');
 const User = require('./models/User');
+const sequelize = require('./db.js');
 
 const app = express();
 
@@ -72,29 +73,52 @@ app.get('/', loginRequired, async (req, res) => {
     const cash = user.dataValues.cash;
 
     try {
-        // Step 1: Aggregate totals for bought shares
-        const buyAggregates = await Transaction.findAll({
-            attributes: [
-                'symbol',
-                [sequelize.fn('SUM', sequelize.col('shares')), 'total_shares']
-            ],
-            where: { type: 'buy', username: userId },
-            group: 'symbol',
-            raw: true
+        // Aggregate transactions for current user
+        const aggregatesTotal = await sequelize.query(`
+            SELECT buy.symbol, (buy.total_shares - IFNULL(sell.total_shares, 0)) AS total_shares
+            FROM
+                (SELECT symbol, SUM(shares) AS total_shares FROM transactions WHERE type='buy' AND username = :username GROUP BY symbol) AS buy
+            LEFT JOIN
+                (SELECT symbol, SUM(shares) AS total_shares FROM transactions WHERE type='sell' AND username = :username GROUP BY symbol) AS sell
+            ON buy.symbol = sell.symbol;
+        `, {
+            replacements: { username: username },
+            type: sequelize.QueryTypes.SELECT
         });
 
-        // Step 2: Aggregate totals for sold shares
-        const sellAggregates = await Transaction.findAll({
-            attributes: [
-                'symbol',
-                [sequelize.fn('SUM', sequelize.col('shares')), 'total_shares']
-            ],
-            where: { type: 'sell', username: userId },
-            group: 'symbol',
-            raw: true
+        // Process each aggregate to calculate current prices and total values
+        const rendered_transactions = await Promise.all(aggregatesTotal.map(async (aggregate) => {
+            const symbol = aggregate.symbol;
+            const shares = aggregate.total_shares;
+            const lookupInfo = await lookup(symbol);
+
+            if (lookupInfo) {
+                const currentPrice = lookupInfo.price;
+                const totalValue = shares * currentPrice;
+                return {
+                    symbol,
+                    shares,
+                    current_price: currentPrice,
+                    total_value: totalValue
+                };
+            }
+            return null; // If lookup fails, exclude the transaction
+        }));
+
+        // Filter out any null transactions from lookup failures
+        const validTransactions = rendered_transactions.filter(txn => txn !== null);
+
+        // Calculate grand total: cash + total value of all stocks
+        const grand_total = validTransactions.reduce((total, txn) => total + txn.total_value, cash);
+
+        // Render the index view with transactions, cash, and grand total
+        res.render('index', {
+            title: 'Index',
+            transactions: validTransactions,
+            cash,
+            grand_total
         });
 
-    res.render('index', {title: 'Index'});
     } catch (error) {
         console.error("Error while calculating transaction data:", error);
         return apology(res, "Could not load portfolio.");
@@ -142,8 +166,8 @@ app.post('/login', async (req, res) => {
         // Store user ID in the session object
         req.session.user_id = rows[0].dataValues.id;
 
-        // Redirect to home page
-        return res.redirect('/');
+        // Render the loading page for login
+        res.render('loading', { title: "Logging In", action: "in", redirectTo: "/" });
         
     } catch (error) {
         console.log('Error when logging in:', error);
@@ -300,14 +324,13 @@ app.post('/add_cash', loginRequired, async (req, res) => {
 });
 
 app.get('/logout', (req, res) => {
-    // Forget any user_id by destroying the session
     req.session.destroy(err => {
         if (err) {
-            console.error("Error logging out:", err);
-            return res.status(500).send("Error logging out. Please try again.");
+            console.error("Logout error:", err);
+            return apology(res, "An error occurred while logging out.");
         }
-        // Redirect user to login page
-        res.redirect('/');
+        // Render the loading page for logout
+        res.render('loading', { title: "Logging Out", action: "out", redirectTo: "/login" });
     });
 });
 

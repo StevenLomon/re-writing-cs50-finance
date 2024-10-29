@@ -1,2 +1,30 @@
 <!-- views/index.ejs -->
-<h1>Portfolio</h1>
+<div class="header">
+    <h1>Portfolio</h1>
+</div>
+<div class="container">
+    <div class="section">
+        <h2>Summary</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Shares</th>
+                    <th>Current price</th>
+                    <th>Total value</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% transactions.forEach(transaction => { %>
+                    <tr>
+                        <td><%= transaction.symbol %></td>
+                        <td><%= transaction.shares %></td>
+                        <td><%= usd(transaction.current_price) %></td>
+                        <td><%= usd(transaction.total_value) %></td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+        <h5>Current cash balance: <%= usd(cash) %> Grand total: <%= usd(grand_total) %></h5>
+    </div>
+</div>
