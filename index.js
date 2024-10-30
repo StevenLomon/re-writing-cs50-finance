@@ -307,17 +307,23 @@ app.post('/buy', loginRequired, async (req, res) => {
 });
 
 app.get('/sell', loginRequired, async (req, res) => {
-    const user = await User.findOne({ where: { id: req.session.user_id } });
-    if (!user) return apology(res, "Error when trying to fetch the current user!") 
+    try {
+        const uniqueSymbols = await sequelize.query(`
+            SELECT DISTINCT symbol FROM transactions WHERE userId = :userId;
+        `, {
+            replacements: { userId: req.session.user_id },
+            type: sequelize.QueryTypes.SELECT
+        });
 
-    const uniqueSymbols = await sequelize.query(`
-        SELECT DISTINCT symbol FROM transactions WHERE username = :username;
-    `, {
-        replacements: { username: user.dataValues.username },
-        type: sequelize.QueryTypes.SELECT
-    });
-    
-    res.render('sell', { title: 'Sell stonks', symbols: uniqueSymbols });
+        if (!uniqueSymbols) return apology(res, "Error fetching symbols from logged in user");
+        // Simplify symbols to an array
+        const symbols = uniqueSymbols.map(row => row.symbol);
+        
+        res.render('sell', { title: 'Sell stonks', symbols: symbols });
+    } catch (error) {
+        console.error("Error fetching symbols for sell:", error);
+        return apology(res, "Error retrieving symbols for sell.");
+    }
 });
 
 app.post('/sell', loginRequired, async (req, res) => {

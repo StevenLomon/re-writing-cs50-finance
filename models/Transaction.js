@@ -44,8 +44,8 @@ const Transaction = sequelize.define('Transaction', {
 });
 
 // Set up the association
-User.hasMany(Transaction, { foreignKey: 'userId' });
-Transaction.belongsTo(User, { foreignKey: 'userId' });
+User.hasMany(Transaction, { foreignKey: 'userId' }); // One user can have *many* transactions
+Transaction.belongsTo(User, { foreignKey: 'userId' }); // A transaction can only belong to *one* user
 
 // Export the model
 module.exports = Transaction;
