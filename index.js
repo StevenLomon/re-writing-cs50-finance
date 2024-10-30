@@ -421,6 +421,10 @@ app.post('/add_cash', loginRequired, async (req, res) => {
     }
 });
 
+app.get('/change_pw', (req, res) => {
+    res.render('change_pw', { title: "Change password" });
+});
+
 app.get('/logout', (req, res) => {
     req.session.destroy(err => {
         if (err) {
