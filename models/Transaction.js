@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../db.js'); // Import the Sequelize instance from db.js
+const User = require('./User.js');
 
 // Define the Transaction model (which maps to the 'transactions' table)
 const Transaction = sequelize.define('Transaction', {
@@ -9,9 +10,13 @@ const Transaction = sequelize.define('Transaction', {
         autoIncrement: true,
         allowNull: false
     },
-    username: {
-        type: DataTypes.TEXT,
-        allowNull: false
+    userId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+            model: 'User',
+            key: 'id'
+        }
     },
     type: {
         type: DataTypes.TEXT,
@@ -37,6 +42,10 @@ const Transaction = sequelize.define('Transaction', {
 }, {
     timestamps: false  // Disable Sequelize's automatic timestamps
 });
+
+// Set up the association
+User.hasMany(Transaction, { foreignKey: 'userId' });
+Transaction.belongsTo(User, { foreignKey: 'userId' });
 
 // Export the model
 module.exports = Transaction;

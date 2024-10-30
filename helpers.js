@@ -40,29 +40,32 @@ function loginRequired(req, res, next) {
 
 // Lookup function (became unathorized from Yahoo Finance API for some reason so switched to Alpha Vantage)
 async function lookup(symbol) {
-  const apiKey = process.env.ALPHA_VANTAGE_API_KEY; 
+  const apiKey = process.env.ALPHA_VANTAGE_API_KEY;
   const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${apiKey}`;
 
   try {
-      const response = await axios.get(url, {
-          headers: { 'User-Agent': 'request' },
-          responseType: 'json'
-      });
-      console.log("API response:", response.data); // Debugging line
+    const response = await axios.get(url, {
+      headers: { 'User-Agent': 'request' },
+      responseType: 'json'
+    });
+    
+    const data = response.data;
 
-      if (!response.data["Time Series (5min)"]) {
-        console.log("Invalid or missing data:", response.data);
-        return null;
+    // Rate limit handling
+    if (data.Information && data.Information.toLowerCase().includes("rate limit")) {
+      return { error: "Rate limit exceeded. Please try again later." };
     }
 
-    const latestPrice = parseFloat(Object.values(response.data["Time Series (5min)"])[0]["4. close"]);
+    // Extract the latest daily closing price
+    const latestPrice = parseFloat(Object.values(data['Time Series (Daily)'])[0]['4. close']);
     return { price: latestPrice.toFixed(2) };
 
   } catch (error) {
-      console.error("Error retrieving data from Alpha Vantage:", error.message);
-      return null;
+    console.error("Error retrieving data from Alpha Vantage:", error.message);
+    return { error: "An error occurred while fetching data." };
   }
 }
+
 
 // Format as USD
 function usd(value) {

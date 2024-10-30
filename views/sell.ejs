@@ -1,0 +1,17 @@
+<!-- views/sell.ejs -->
+<form action="/sell" method="post">
+    <h3>Sell stonks!</h3>
+        <div class="mb-3">
+            <label for="symbols">Choose a stonk:</label>
+
+            <select name="symbol" id="symbol">
+            <% symbols.forEach(symbol => { %>
+                <option value=<%= symbol.symbol %>><%= symbol.symbol %></option>
+            <% }) %>
+            </select>
+        </div>
+        <div class="mb-3">
+            <input autocomplete="off" autofocus class="form-control mx-auto w-auto" name="shares" placeholder="Number of shares" type="text">
+        </div>
+        <button class="btn btn-primary" type="submit">Sell</button>
+</form>

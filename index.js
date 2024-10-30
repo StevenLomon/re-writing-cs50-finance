@@ -90,19 +90,23 @@ app.get('/', loginRequired, async (req, res) => {
         const rendered_transactions = await Promise.all(aggregatesTotal.map(async (aggregate) => {
             const symbol = aggregate.symbol;
             const shares = aggregate.total_shares;
+            
             const lookupInfo = await lookup(symbol);
 
-            if (lookupInfo) {
-                const currentPrice = lookupInfo.price;
-                const totalValue = shares * currentPrice;
-                return {
-                    symbol,
-                    shares,
-                    current_price: currentPrice,
-                    total_value: totalValue
-                };
+            // Check for errors in the lookup response
+            if (lookupInfo?.error) {
+                console.log(`Lookup error for ${symbol}: ${lookupInfo.error}`);
+                return null; // Skip this transaction if there's an error
             }
-            return null; // If lookup fails, exclude the transaction
+
+            const currentPrice = lookupInfo.price;
+            const totalValue = shares * currentPrice;
+            return {
+                symbol,
+                shares,
+                current_price: currentPrice,
+                total_value: totalValue
+            };
         }));
 
         // Filter out any null transactions from lookup failures
@@ -236,10 +240,8 @@ app.post('/quote', loginRequired, async (req, res) => {
     if (!symbol) return apology(res, "Must provide symbol!");
 
     try {
-        const lookup_info = await lookup(symbol);
-        if (!lookup_info) return apology(res, `Price not available for ${symbol}!`);
-
-        const price = lookup_info.price; 
+        const price = await lookup(symbol);
+        if (price?.error) return apology(res, price.error);
 
         res.render('quoted', { title: `Price info for ${symbol}`, symbol, price})
 
@@ -267,10 +269,8 @@ app.post('/buy', loginRequired, async (req, res) => {
     const shares = parseInt(shares_input);
 
     try { //1st try / catch: Symbol lookup
-        const lookup_info = await lookup(symbol);
-        if (!lookup_info) return apology(res, `Price not available for ${symbol}!`);
-
-        const price = lookup_info.price; 
+        const price = await lookup(symbol);
+        if (price?.error) return apology(res, price.error);
         const total_cost = price * shares;
 
         try { // 2nd try / catch: Database operations
@@ -303,6 +303,51 @@ app.post('/buy', loginRequired, async (req, res) => {
     } catch (lookupError) {
         console.error("Error when looking up symbol:", lookupError);
         return apology(res, "Error retrieving symbol information.");
+    }
+});
+
+app.get('/sell', loginRequired, async (req, res) => {
+    const user = await User.findOne({ where: { id: req.session.user_id } });
+    if (!user) return apology(res, "Error when trying to fetch the current user!") 
+
+    const uniqueSymbols = await sequelize.query(`
+        SELECT DISTINCT symbol FROM transactions WHERE username = :username;
+    `, {
+        replacements: { username: user.dataValues.username },
+        type: sequelize.QueryTypes.SELECT
+    });
+    
+    res.render('sell', { title: 'Sell stonks', symbols: uniqueSymbols });
+});
+
+app.post('/sell', loginRequired, async (req, res) => {
+    const cash = user.dataValues.cash;
+
+    // Validate symbol and shares
+    const symbol = req.body.symbol;
+    if (!symbol) return apology(res, "Must provide valid symbol!");
+    const shares = req.body.shares;
+    if (!shares | isNaN(Number(shares)) | parseInt(shares) < 1) {
+        return apology(res, "Must provide a valid amount of shares as an integer!");
+    }
+
+    try {
+        const price = await lookup(symbol);
+        if (price?.error) return apology(res, price.error);
+
+        try {
+            const transactions = await Transaction.findAll({ where: { username: user.dataValues.username } });
+            const symbols = transactions.dataValues.symbol;
+            console.log(symbols);
+
+            
+        } catch(lookupError) {
+            console.error("Error when looking up price:", lookupError);
+            return apology(res, `Error when looking up price for ${symbol}`);
+        }
+    } catch(dbError) {
+        console.error("Error when accessing history from database:", dbError);
+        return apology(res, "Error retrieving user transaction history");
     }
 });
 
