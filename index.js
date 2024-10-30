@@ -69,7 +69,6 @@ app.get('/', loginRequired, async (req, res) => {
     const user = await User.findOne({ where: { id: userId } });
     if (!user) return apology(res, "Error when trying to fetch the current user!") 
 
-    const username = user.dataValues.username;
     const cash = user.dataValues.cash;
 
     try {
@@ -77,12 +76,12 @@ app.get('/', loginRequired, async (req, res) => {
         const aggregatesTotal = await sequelize.query(`
             SELECT buy.symbol, (buy.total_shares - IFNULL(sell.total_shares, 0)) AS total_shares
             FROM
-                (SELECT symbol, SUM(shares) AS total_shares FROM transactions WHERE type='buy' AND username = :username GROUP BY symbol) AS buy
+                (SELECT symbol, SUM(shares) AS total_shares FROM transactions WHERE type='buy' AND userId = :userId GROUP BY symbol) AS buy
             LEFT JOIN
-                (SELECT symbol, SUM(shares) AS total_shares FROM transactions WHERE type='sell' AND username = :username GROUP BY symbol) AS sell
+                (SELECT symbol, SUM(shares) AS total_shares FROM transactions WHERE type='sell' AND userId = :userId GROUP BY symbol) AS sell
             ON buy.symbol = sell.symbol;
         `, {
-            replacements: { username: username },
+            replacements: { userId: userId },
             type: sequelize.QueryTypes.SELECT
         });
 
@@ -209,12 +208,9 @@ app.post('/register', async (req, res) => {
         const hashedPassword = await bcrypt.hash(req.body.password, 10); // 10 salt rounds is a recommended default for security
 
         // Create the new user with the hashed password
-        const newUser = await User.create({
-            username: req.body.username,
-            hash: hashedPassword
-        });
+        await User.create({ username: req.body.username, hash: hashedPassword });
 
-        // res.json(newUser); // Send the newly created user as a response
+        console.log(`Successfully created user ${req.body.username}!`)
 
         // Redirect user to login page
         res.redirect('/login');
@@ -274,21 +270,21 @@ app.post('/buy', loginRequired, async (req, res) => {
         const total_cost = price * shares;
 
         try { // 2nd try / catch: Database operations
-            const user = await User.findOne({ where: { id: req.session.user_id } });
+            const userId = req.session.user_id;
+            const user = await User.findOne({ where: { id: userId } });
             if (!user) return apology(res, "Error when trying to fetch the current user!");
 
             const cash = user.dataValues.cash;
-            const username = user.dataValues.username;
             const type = 'buy';
 
             // Check if user has enough cash
             if (total_cost > cash) return apology(res, "Insufficient funds to complete purchase!");
 
             // Insert the transaction and update cash
-            await Transaction.create({ username, type, symbol, price, shares });
+            await Transaction.create({ userId, type, symbol, price, shares });
             const cash_new = cash - total_cost;
 
-            const [rowsUpdated] = await User.update({ cash: cash_new }, { where: { id: req.session.user_id } });
+            const [rowsUpdated] = await User.update({ cash: cash_new }, { where: { id: userId } });
             if (rowsUpdated === 0) return apology(res, "Error updating cash balance.");
 
             // If this point is reached, print a success message to the terminal at least
