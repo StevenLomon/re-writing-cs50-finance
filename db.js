@@ -6,12 +6,4 @@ const sequelize = new Sequelize({
     storage: './finance.db'
 });
 
-sequelize.sync()
-    .then(() => {
-        console.log('Database successfully synced!');
-    })
-    .catch((error) => {
-        console.log('Database synced resulted in error:', error)
-    });
-
 module.exports = sequelize;

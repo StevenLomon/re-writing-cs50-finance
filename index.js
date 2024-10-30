@@ -11,9 +11,26 @@ require('dotenv').config();
 const { apology, loginRequired, lookup, usd } = require('./helpers');
 
 // Import models to ensure syncing
-const Transaction = require('./models/Transaction');
 const User = require('./models/User');
+const Transaction = require('./models/Transaction');
 const sequelize = require('./db.js');
+
+// Set up the association between the models
+User.hasMany(Transaction, { foreignKey: 'userId' }); // One user can have *many* transactions
+Transaction.belongsTo(User, { foreignKey: 'userId' }); // A transaction can only belong to *one* user
+
+// Sync the database with { force: true } for testing and drop tables if they already exist
+sequelize.sync()
+    .then(async () => {
+        // Test insertions
+        // const user = await User.create({ username: 'testuser', hash: 'testhash', cash: 10000 });
+        // await Transaction.create({ userId: user.id, type: 'buy', symbol: 'AAPL', price: 150, shares: 10 });
+        // console.log("Basic insert test passed.");
+        console.log('Database successfully synced!');
+    })
+    .catch(err => {
+        console.error('Error syncing database:', err);
+    });
 
 const app = express();
 
@@ -265,9 +282,10 @@ app.post('/buy', loginRequired, async (req, res) => {
     const shares = parseInt(shares_input);
 
     try { //1st try / catch: Symbol lookup
-        const price = await lookup(symbol);
-        if (price?.error) return apology(res, price.error);
-        const total_cost = price * shares;
+        const lookup_info = await lookup(symbol);
+        if (lookup_info?.error) return apology(res, lookup_info.error); // In case of rate limit being hit
+        const price = lookup_info.price;
+        const total_cost =  price * shares;
 
         try { // 2nd try / catch: Database operations
             const userId = req.session.user_id;
@@ -354,14 +372,10 @@ app.post('/sell', loginRequired, async (req, res) => {
 });
 
 app.get('/history', loginRequired, async (req, res) => {
-    const user = await User.findOne({ where: { id: req.session.user_id } });
-    if (!user) return apology(res, "Error when trying to fetch the current user!") 
-
     try {
-        const transactions = await Transaction.findAll({ where: { username: user.dataValues.username } });
-        const validTransactions = transactions.filter(txn => txn !== null);
+        const transactions = await Transaction.findAll({ where: { userId: req.session.user_id } });
 
-        res.render('history', { title: 'History', transactions: validTransactions });
+        res.render('history', { title: 'History', transactions: transactions });
 
     } catch(dbError) {
         console.error("Error when accessing history from database:", dbError);
@@ -419,7 +433,8 @@ app.get('/logout', (req, res) => {
 });
 
 // Listen to the server
-app.listen(3000, () => {
-    console.log('Server running on http://localhost:3000');
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
 });
 

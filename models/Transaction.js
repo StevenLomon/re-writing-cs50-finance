@@ -14,7 +14,7 @@ const Transaction = sequelize.define('Transaction', {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
-            model: 'User',
+            model: 'Users', // Using the name as it appears in SQLite
             key: 'id'
         }
     },
@@ -42,10 +42,6 @@ const Transaction = sequelize.define('Transaction', {
 }, {
     timestamps: false  // Disable Sequelize's automatic timestamps
 });
-
-// Set up the association
-User.hasMany(Transaction, { foreignKey: 'userId' }); // One user can have *many* transactions
-Transaction.belongsTo(User, { foreignKey: 'userId' }); // A transaction can only belong to *one* user
 
 // Export the model
 module.exports = Transaction;
