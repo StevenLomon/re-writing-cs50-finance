@@ -7,6 +7,7 @@ on:
         branches:
             - main
             - 'feature/*'  # Runs for branches like 'feature/implementing_change_pw'
+            - 'fix/*'      # Runs for branches like 'fix/login_route'
 
 jobs:
     build:

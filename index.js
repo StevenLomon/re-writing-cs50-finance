@@ -5,7 +5,7 @@ const morgan = require('morgan');
 const session = require('express-session');
 const FileStore = require('session-file-store')(session);
 const expressLayouts = require('express-ejs-layouts');
-const { DataTypes, ValidationError } = require('sequelize');
+const { ValidationError } = require('sequelize');
 require('dotenv').config();
 
 const { apology, loginRequired, lookup, usd } = require('./helpers');
@@ -308,10 +308,13 @@ app.post('/buy', loginRequired, async (req, res) => {
             // If this point is reached, print a success message to the terminal at least
             console.log(`Succesfully bought ${shares} shares from ${symbol} for a total cost of $${total_cost}!`);
             return res.redirect('/');
-        }
-        catch (dbError) {
-            console.error("Error during database operation:", dbError);
-            return apology(res, "Database error during transaction.");
+        } catch (dbError) {
+            if (dbError instanceof ValidationError) {
+                return res.status(400).send("Validation error: Invalid data provided");
+            } else {
+                console.error("Error during database operation:", dbError);
+            }
+            return res.status(500).send("An unexpected error occurred trying to buy shares. Try again later.");
         }
         
     } catch (lookupError) {
@@ -358,16 +361,18 @@ app.post('/sell', loginRequired, async (req, res) => {
         try {
             const transactions = await Transaction.findAll({ where: { username: user.dataValues.username } });
             const symbols = transactions.dataValues.symbol;
-            console.log(symbols);
 
-            
         } catch(lookupError) {
             console.error("Error when looking up price:", lookupError);
             return apology(res, `Error when looking up price for ${symbol}`);
         }
-    } catch(dbError) {
-        console.error("Error when accessing history from database:", dbError);
-        return apology(res, "Error retrieving user transaction history");
+    } catch (dbError) {
+        if (dbError instanceof ValidationError) {
+            return res.status(400).send("Validation error: Invalid data provided");
+        } else {
+            console.error("Error during database operation:", dbError);
+        }
+        return res.status(500).send("An unexpected error occurred trying to sell shares. Try again later.");
     }
 });
 
@@ -377,9 +382,13 @@ app.get('/history', loginRequired, async (req, res) => {
 
         res.render('history', { title: 'History', transactions: transactions });
 
-    } catch(dbError) {
-        console.error("Error when accessing history from database:", dbError);
-        return apology(res, "Error retrieving user transaction history");
+    } catch (dbError) {
+        if (dbError instanceof ValidationError) {
+            return res.status(400).send("Validation error: Invalid data provided");
+        } else {
+            console.error("Error during database operation:", dbError);
+        }
+        return res.status(500).send("An unexpected error occurred trying to fetch history. Try again later.");
     }
 });
 
@@ -415,9 +424,13 @@ app.post('/add_cash', loginRequired, async (req, res) => {
         console.log(`Succesfully added $${cash} to wallet!`)
         return res.redirect('/')
 
-    } catch(dbError) {
-        console.error("Error during database operation:", dbError);
-        return apology(res, "Database error during transaction.");
+    } catch (dbError) {
+        if (dbError instanceof ValidationError) {
+            return res.status(400).send("Validation error: Invalid data provided");
+        } else {
+            console.error("Error during database operation:", dbError);
+        }
+        return res.status(500).send("An unexpected error occurred trying to add cash. Try again later");
     }
 });
 
