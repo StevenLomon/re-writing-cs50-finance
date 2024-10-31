@@ -1,0 +1,14 @@
+<!-- views/change_pw.ejs -->
+<form action="/change_pw" method="post">
+    <h3>Change password</h3>
+    <div class="mb-3">
+        <input autocomplete="off" autofocus class="form-control mx-auto w-auto" name="pw_old" placeholder="Old password" type="password">
+    </div>
+    <div class="mb-3">
+        <input autocomplete="off" autofocus class="form-control mx-auto w-auto" name="pw_new" placeholder="New password" type="password">
+    </div>
+    <div class="mb-3">
+        <input autocomplete="off" autofocus class="form-control mx-auto w-auto" name="pw_match" placeholder="Confirm password" type="password">
+    </div>
+    <button class="btn btn-primary" type="submit">Change password</button>
+</form>
