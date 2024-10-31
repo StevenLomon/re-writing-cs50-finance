@@ -1,9 +1,9 @@
-const sqlite3 = require('sqlite3').verbose(); // Verbose for more detailed logs in local development
 const { Sequelize } = require('sequelize');
 
 const sequelize = new Sequelize({
     dialect: 'sqlite',
-    storage: './finance.db'
+    storage: './finance.db',
+    logging: console.log // Enables detailed SQL logging instead of const sqlite3 = require('sqlite3').verbose();
 });
 
 module.exports = sequelize;
