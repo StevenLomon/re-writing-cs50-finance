@@ -470,25 +470,33 @@ app.get('/change_pw', (req, res) => {
 
 app.post('change_pw', async (req, res) =>
 {
+    // Verify field values
     const pw_old = req.body.pw_old;
+    if (!pw_old) return apology(res, "Must provide old password!");
+
     const pw_new = req.body.pw_new;
     const pw_match = req.body.pw_match;
+    if (!pw_new || !pw_match) return apology(res, "Must provide new password!");
+    if (pw_new !== pw_match) return apology(res, "New passwords must match, try again!");
 
-    if (!pw_new === pw_match) return apology(res, "Passwords does not match, try again!");
-
+    // Fetch current user info
     const userId = req.session.user_id;
     const user = await User.findOne({ where: { id: userId } });
     if (!user) return apology(res, "Error when trying to fetch the current user!")
-
     const username = user.dataValues.username;
 
+    // Verify old password
+    const oldPasswordMatch = await bcrypt.compare(pw_old, user.dataValues.hash);
+    if (!oldPasswordMatch) return apology(res, "Old password is incorrect!");
+
     // Hash the new password asynchronously
-    hashedPassword = await bcrypt.hash(pw_new, 10);
+    const hashedPassword = await bcrypt.hash(pw_new, 10);
 
     // Try to update password
     try {
         const [rowsUpdated] = await User.update({ hash: hashedPassword }, { where: { id: userId } });
         if (rowsUpdated === 0) return apology(res, "Error updating password, try again later!");
+
         console.log(`Succesfully updated password for user ${username}!`)
         return res.redirect('/');
     } catch (dbError) {
