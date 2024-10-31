@@ -378,8 +378,6 @@ app.post('/sell', loginRequired, async (req, res) => {
     
             if (!userSharesInfo) return apology(res, "Error fetching shares amount from logged in user");
             const userShares = parseInt(userSharesInfo[0]?.total_shares || 0); // Use fallback for null values
-            console.log(userShares);
-            console.log(typeof(userShares));
 
             // See if user has enough shares for the sales and if so, try to insert the transaction
             if (shares > userShares) return apology(res, "Insufficient shares to complete sale!")
