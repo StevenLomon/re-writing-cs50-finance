@@ -361,9 +361,7 @@ app.post('/sell', loginRequired, async (req, res) => {
         try {
             const transactions = await Transaction.findAll({ where: { username: user.dataValues.username } });
             const symbols = transactions.dataValues.symbol;
-            console.log(symbols);
 
-            
         } catch(lookupError) {
             console.error("Error when looking up price:", lookupError);
             return apology(res, `Error when looking up price for ${symbol}`);

@@ -1,6 +1,5 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../db.js'); // Import the Sequelize instance from db.js
-const User = require('./User.js');
 
 // Define the Transaction model (which maps to the 'transactions' table)
 const Transaction = sequelize.define('Transaction', {
