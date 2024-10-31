@@ -269,12 +269,11 @@ app.get('/buy', loginRequired, (req, res) => {
 });
 
 app.post('/buy', loginRequired, async (req, res) => {
+    // Validate symbol and shares from form outside of try / catch blocks using apology
     const symbol = req.body.symbol;
     if (!symbol) return apology(res, "Must provide symbol!");
 
     const shares_input = req.body.shares;
-
-    // Ensure shares were submitted and valid
     if (!shares_input || isNaN(Number(shares_input)) || parseInt(shares_input) < 1) {
         return apology(res, "Must provide a valid amount of shares as an integer!");
     } 
@@ -300,8 +299,8 @@ app.post('/buy', loginRequired, async (req, res) => {
 
             // Insert the transaction and update cash
             await Transaction.create({ userId, type, symbol, price, shares });
+            
             const cash_new = cash - total_cost;
-
             const [rowsUpdated] = await User.update({ cash: cash_new }, { where: { id: userId } });
             if (rowsUpdated === 0) return apology(res, "Error updating cash balance.");
 
@@ -344,35 +343,68 @@ app.get('/sell', loginRequired, async (req, res) => {
 });
 
 app.post('/sell', loginRequired, async (req, res) => {
-    const cash = user.dataValues.cash;
-
-    // Validate symbol and shares
+    // Validate symbol and shares from form outside of try / catch blocks using apology
     const symbol = req.body.symbol;
-    if (!symbol) return apology(res, "Must provide valid symbol!");
-    const shares = req.body.shares;
-    if (!shares | isNaN(Number(shares)) | parseInt(shares) < 1) {
+    if (!symbol) return apology(res, "Must provide symbol!");
+
+    const shares_input = req.body.shares;
+    if (!shares_input || isNaN(Number(shares_input)) || parseInt(shares_input) < 1) {
         return apology(res, "Must provide a valid amount of shares as an integer!");
-    }
+    } 
 
-    try {
-        const price = await lookup(symbol);
-        if (price?.error) return apology(res, price.error);
+    const shares = parseInt(shares_input);
 
-        try {
-            const transactions = await Transaction.findAll({ where: { username: user.dataValues.username } });
-            const symbols = transactions.dataValues.symbol;
+    try { //1st try / catch: Symbol lookup
+        const lookup_info = await lookup(symbol);
+        if (lookup_info?.error) return apology(res, lookup_info.error); // In case of rate limit being hit
+        const price = lookup_info.price;
+        const total_profit =  price * shares;
 
-        } catch(lookupError) {
-            console.error("Error when looking up price:", lookupError);
-            return apology(res, `Error when looking up price for ${symbol}`);
+        try { // 2nd try / catch: Database operations
+            const userId = req.session.user_id;
+            const user = await User.findOne({ where: { id: userId } });
+            if (!user) return apology(res, "Error when trying to fetch the current user!");
+
+            const cash = user.dataValues.cash;
+            const type = 'sell';
+
+            // Fetch total shares held by the user for the specified symbol
+            const userSharesInfo = await sequelize.query(`
+                SELECT SUM(shares) AS total_shares FROM transactions WHERE userId = :userId AND symbol = :symbol;
+            `, {
+                replacements: { userId: req.session.user_id, symbol: symbol },
+                type: sequelize.QueryTypes.SELECT
+            });
+    
+            if (!userSharesInfo) return apology(res, "Error fetching shares amount from logged in user");
+            const userShares = parseInt(userSharesInfo[0]?.total_shares || 0); // Use fallback for null values
+            console.log(userShares);
+            console.log(typeof(userShares));
+
+            // See if user has enough shares for the sales and if so, try to insert the transaction
+            if (shares > userShares) return apology(res, "Insufficient shares to complete sale!")
+            await Transaction.create({ userId, type, symbol, price, shares });
+
+            // Try to update cash for the user
+            const cash_new = cash + total_profit;
+            const [rowsUpdated] = await User.update({ cash: cash_new }, { where: { id: userId } });
+            if (rowsUpdated === 0) return apology(res, "Error updating cash balance.");
+
+            // If this point is reached, print a success message to the terminal at least
+            console.log(`Succesfully sold ${shares} shares from ${symbol} for a total cost of $${total_profit}!`);
+            return res.redirect('/');
+
+        } catch (dbError) {
+            if (dbError instanceof ValidationError) {
+                return res.status(400).send("Validation error: Invalid data provided");
+            } else {
+                console.error("Error during database operation:", dbError);
+            }
+            return res.status(500).send("An unexpected error occurred during the sale transaction.");
         }
-    } catch (dbError) {
-        if (dbError instanceof ValidationError) {
-            return res.status(400).send("Validation error: Invalid data provided");
-        } else {
-            console.error("Error during database operation:", dbError);
-        }
-        return res.status(500).send("An unexpected error occurred trying to sell shares. Try again later.");
+    } catch (lookupError) {
+        console.error("Error when looking up symbol:", lookupError);
+        return apology(res, "Error retrieving symbol information.");
     }
 });
 
