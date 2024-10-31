@@ -34,7 +34,7 @@ sequelize.sync()
 
 const app = express();
 
-// console.log(`Secret key: ${process.env.SECRET_KEY}`) // The type of rabbit ears we use is important!
+// console.log(`Secret key: ${process.env.SECRET_KEY}`)
 // Session middleware
 app.use(session({
     store: new FileStore(),  // Use file-based session store
@@ -62,11 +62,6 @@ app.use((req, res, next) => {
     res.locals.usd = usd; // Make usd function available in all EJS templates. Similar to using a custom jinja filter in Flask
     next();
 });
-
-// app.use((req, res, next) => {
-//     console.log("Session initialized:", req.session);  // This should log an empty session object initially
-//     next();
-// });
 
 app.use(express.urlencoded({ extended: true }));  // Middleware function to parse form data
 
@@ -525,4 +520,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
-
