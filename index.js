@@ -464,11 +464,11 @@ app.post('/add_cash', loginRequired, async (req, res) => {
     }
 });
 
-app.get('/change_pw', (req, res) => {
+app.get('/change_pw', loginRequired, (req, res) => {
     res.render('change_pw', { title: "Change password" });
 });
 
-app.post('change_pw', async (req, res) =>
+app.post('change_pw', loginRequired, async (req, res) =>
 {
     // Verify field values
     const pw_old = req.body.pw_old;
