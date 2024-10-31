@@ -302,7 +302,7 @@ app.post('/buy', loginRequired, async (req, res) => {
             
             const cash_new = cash - total_cost;
             const [rowsUpdated] = await User.update({ cash: cash_new }, { where: { id: userId } });
-            if (rowsUpdated === 0) return apology(res, "Error updating cash balance.");
+            if (rowsUpdated === 0) return apology(res, "Error updating cash balance, try again later!");
 
             // If this point is reached, print a success message to the terminal at least
             console.log(`Succesfully bought ${shares} shares from ${symbol} for a total cost of $${total_cost}!`);
@@ -386,7 +386,7 @@ app.post('/sell', loginRequired, async (req, res) => {
             // Try to update cash for the user
             const cash_new = cash + total_profit;
             const [rowsUpdated] = await User.update({ cash: cash_new }, { where: { id: userId } });
-            if (rowsUpdated === 0) return apology(res, "Error updating cash balance.");
+            if (rowsUpdated === 0) return apology(res, "Error updating cash balance, try again later!");
 
             // If this point is reached, print a success message to the terminal at least
             console.log(`Succesfully sold ${shares} shares from ${symbol} for a total cost of $${total_profit}!`);
@@ -449,7 +449,7 @@ app.post('/add_cash', loginRequired, async (req, res) => {
 
         // Update user cash in the database
         const [rowsUpdated] = await User.update({ cash: cash_new }, { where: { id: req.session.user_id } })
-        if (rowsUpdated === 0) return apology(res, "Error updating cash balance.");
+        if (rowsUpdated === 0) return apology(res, "Error updating cash balance, try again later!");
 
         console.log(`Succesfully added $${cash} to wallet!`)
         return res.redirect('/')
@@ -466,6 +466,39 @@ app.post('/add_cash', loginRequired, async (req, res) => {
 
 app.get('/change_pw', (req, res) => {
     res.render('change_pw', { title: "Change password" });
+});
+
+app.post('change_pw', async (req, res) =>
+{
+    const pw_old = req.body.pw_old;
+    const pw_new = req.body.pw_new;
+    const pw_match = req.body.pw_match;
+
+    if (!pw_new === pw_match) return apology(res, "Passwords does not match, try again!");
+
+    const userId = req.session.user_id;
+    const user = await User.findOne({ where: { id: userId } });
+    if (!user) return apology(res, "Error when trying to fetch the current user!")
+
+    const username = user.dataValues.username;
+
+    // Hash the new password asynchronously
+    hashedPassword = await bcrypt.hash(pw_new, 10);
+
+    // Try to update password
+    try {
+        const [rowsUpdated] = await User.update({ hash: hashedPassword }, { where: { id: userId } });
+        if (rowsUpdated === 0) return apology(res, "Error updating password, try again later!");
+        console.log(`Succesfully updated password for user ${username}!`)
+        return res.redirect('/');
+    } catch (dbError) {
+        if (dbError instanceof ValidationError) {
+            return res.status(400).send("Validation error: Invalid data provided");
+        } else {
+            console.error("Error during database operation:", dbError);
+        }
+        return res.status(500).send("An unexpected error occurred trying to add cash. Try again later");
+    }
 });
 
 app.get('/logout', (req, res) => {
