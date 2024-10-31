@@ -21,6 +21,9 @@ jobs:
               with:
                 node-version: '20' # Upgrade to latest version in order to use checkout@v3 and setup-node@v3
 
+            - name: Double check Node.js version
+              run: node -v
+
             - name: Install dependencies # Install all modules in node_modules
               run: npm install
 
