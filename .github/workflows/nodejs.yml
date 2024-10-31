@@ -19,7 +19,7 @@ jobs:
             - name: Set up Node.js
               uses: actions/setup-node@v3
               with:
-                node-version: '18'
+                node-version: '20' # Upgrade to latest version in order to use checkout@v3 and setup-node@v3
 
             - name: Install dependencies # Install all modules in node_modules
               run: npm install
